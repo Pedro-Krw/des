@@ -1,25 +1,71 @@
+from Crypto.Cipher import DES
+from Crypto.Util.Padding import pad, unpad
 import socket
-from des_module import decrypt
+import threading
 
-def server_program():
-    # Set up the server
+# untuk DEAS
+KEY = b'secret_k'
+
+# ////
+def encrypt_message(message):
+    cipher = DES.new(KEY, DES.MODE_ECB)
+    # Pesan 
+    encrypted_message = cipher.encrypt(pad(message.encode(), 8))
+    return encrypted_message  # Mengembalikan pesan terenkripsi
+
+# Fungsi dekripsi pesan  DES
+def decrypt_message(encrypted_message):
+    cipher = DES.new(KEY, DES.MODE_ECB)
+    # Unpad pesan setelah didekripsi
+    decrypted_message = unpad(cipher.decrypt(encrypted_message), 8)
+    return decrypted_message.decode()  # Mengembalikan pesan asli
+
+# bagian ini jalankan server
+def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("127.0.0.1", 65432))
+    server_socket.bind(('localhost', 12345)) 
     server_socket.listen(1)
+    print("Server berjalan dan menunggu koneksi...")
 
-    print("Waiting for connection...")
-    conn, addr = server_socket.accept()
-    print(f"Connected by: {addr}")
+    while True:
+        client_socket, addr = server_socket.accept()
+        print(f"Terhubung dengan {addr}")
 
-    # Receive encrypted message
-    encrypted_message = conn.recv(1024)
-    print(f"Encrypted message received: {encrypted_message}")
+        
+        encrypted_message = client_socket.recv(1024)
+        
+        # pesan ditampilkan
+        decrypted_message = decrypt_message(encrypted_message)
+        print("Pesan diterima:", decrypted_message)
 
-    # Decrypt the message
-    decrypted_message = decrypt(encrypted_message)
-    print(f"Decrypted message: {decrypted_message}")
+        client_socket.close()
 
-    conn.close()
+# Fungsi untuk menjalankan client
+def start_client():
+    # Input pesan dari pengguna
+    message = input("Masukkan pesan untuk dienkripsi: ")
+
+    # Enkripsi pesan
+    encrypted_message = encrypt_message(message)
+
+
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect(('localhost', 12345))
+    client_socket.sendall(encrypted_message)
+
+    client_socket.close()
+    print("Pesan terenkripsi telah dikirim.")
+
+
+def main():
+    role = input("Masukkan 's' untuk menjalankan sebagai server, atau 'c' untuk client: ").strip().lower()
+    if role == 's':
+        start_server()
+    elif role == 'c':
+        start_client()
+    else:
+        print("Input tidak valid. Silakan masukkan 's' atau 'c'.")
+
 
 if __name__ == "__main__":
-    server_program()
+    main()
